@@ -211,4 +211,81 @@ export class QuizzesService {
       };
     });
   }
+
+  /* ─── Update Quiz ─── */
+  async update(id: string, dto: CreateQuizDto, user: JwtPayload) {
+    const quiz = await this.prisma.quiz.findUnique({
+      where: { id },
+      include: { course: true },
+    });
+    if (!quiz) throw new NotFoundException('Quiz not found');
+    if (user.role !== Role.ADMIN && quiz.course.responsibleId !== user.sub) {
+      throw new ForbiddenException('Not allowed');
+    }
+
+    // Delete old questions & options, then recreate
+    await this.prisma.question.deleteMany({ where: { quizId: id } });
+
+    const updated = await this.prisma.quiz.update({
+      where: { id },
+      data: {
+        title: dto.title,
+        description: dto.description,
+        pointsFirstTry: dto.pointsFirstTry ?? quiz.pointsFirstTry,
+        pointsSecondTry: dto.pointsSecondTry ?? quiz.pointsSecondTry,
+        pointsThirdTry: dto.pointsThirdTry ?? quiz.pointsThirdTry,
+        pointsFourthPlus: dto.pointsFourthPlus ?? quiz.pointsFourthPlus,
+        allowMultipleAttempts: dto.allowMultipleAttempts ?? quiz.allowMultipleAttempts,
+        questions: {
+          create: dto.questions.map((q) => ({
+            text: q.text,
+            multipleSelection: q.multipleSelection ?? false,
+            options: {
+              create: q.options.map((o) => ({
+                text: o.text,
+                isCorrect: o.isCorrect,
+              })),
+            },
+          })),
+        },
+      },
+      include: { questions: { include: { options: true } } },
+    });
+
+    await this.auditLog.create({
+      actorId: user.sub,
+      action: 'QUIZ_UPDATED',
+      resourceType: 'Quiz',
+      resourceId: id,
+      courseId: quiz.courseId,
+      data: { title: updated.title },
+    });
+
+    return updated;
+  }
+
+  /* ─── Delete Quiz ─── */
+  async delete(id: string, user: JwtPayload) {
+    const quiz = await this.prisma.quiz.findUnique({
+      where: { id },
+      include: { course: true },
+    });
+    if (!quiz) throw new NotFoundException('Quiz not found');
+    if (user.role !== Role.ADMIN && quiz.course.responsibleId !== user.sub) {
+      throw new ForbiddenException('Not allowed');
+    }
+
+    await this.prisma.quiz.delete({ where: { id } });
+
+    await this.auditLog.create({
+      actorId: user.sub,
+      action: 'QUIZ_DELETED',
+      resourceType: 'Quiz',
+      resourceId: id,
+      courseId: quiz.courseId,
+      data: { title: quiz.title },
+    });
+
+    return { message: 'Quiz deleted' };
+  }
 }

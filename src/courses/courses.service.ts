@@ -68,6 +68,53 @@ export class CoursesService {
     return buildPaginatedResponse(courses, limit);
   }
 
+  /* ─── Backoffice List (admin: all, instructor: own) ─── */
+  async findAllBackoffice(query: QueryCoursesDto, user: JwtPayload) {
+    const { search, cursor, limit = 20 } = query;
+    const take = Math.min(limit, 100) + 1;
+
+    const where: Prisma.CourseWhereInput = {
+      // Instructor sees only their own courses; admin sees all
+      ...(user.role !== Role.ADMIN ? { responsibleId: user.sub } : {}),
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+              { tags: { has: search } },
+            ],
+          }
+        : {}),
+    };
+
+    const cursorObj = cursor ? decodeCursor(cursor) : undefined;
+
+    const courses = await this.prisma.course.findMany({
+      where,
+      take,
+      ...(cursorObj ? { cursor: { id: cursorObj.id }, skip: 1 } : {}),
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        description: true,
+        tags: true,
+        coverImageId: true,
+        totalDurationSec: true,
+        lessonsCount: true,
+        published: true,
+        visibility: true,
+        accessRule: true,
+        price: true,
+        responsibleId: true,
+        createdAt: true,
+      },
+    });
+
+    return buildPaginatedResponse(courses, limit);
+  }
+
   /* ─── Get by ID ─── */
   async findById(id: string) {
     const course = await this.prisma.course.findUnique({

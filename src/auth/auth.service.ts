@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   ForbiddenException,
+  NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -108,6 +109,25 @@ export class AuthService {
 
     // Rotate
     return this.generateTokens(user.id, user.email, user.role);
+  }
+
+  /* ─── Profile ─── */
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        avatarUrl: true,
+        bio: true,
+        totalPoints: true,
+        createdAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
   }
 
   /* ─── Logout ─── */

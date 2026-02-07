@@ -29,6 +29,17 @@ export class CoursesController {
     return this.coursesService.findAll(query);
   }
 
+  @Get('backoffice')
+  @Roles(Role.ADMIN, Role.INSTRUCTOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List courses for backoffice (admin: all, instructor: own)' })
+  async findAllBackoffice(
+    @Query() query: QueryCoursesDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.coursesService.findAllBackoffice(query, user);
+  }
+
   @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Get course by ID' })

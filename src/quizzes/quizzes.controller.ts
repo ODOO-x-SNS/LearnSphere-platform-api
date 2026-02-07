@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Param,
   Body,
   HttpCode,
@@ -38,6 +40,27 @@ export class QuizzesController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.quizzesService.findById(id, user);
+  }
+
+  @Patch('quizzes/:id')
+  @Roles(Role.ADMIN, Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'Update a quiz' })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: CreateQuizDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.quizzesService.update(id, dto, user);
+  }
+
+  @Delete('quizzes/:id')
+  @Roles(Role.ADMIN, Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'Delete a quiz' })
+  async delete(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.quizzesService.delete(id, user);
   }
 
   @Post('quizzes/:id/attempts')

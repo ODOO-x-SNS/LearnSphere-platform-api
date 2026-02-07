@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   Req,
@@ -60,6 +61,14 @@ export class AuthController {
     return { accessToken: result.accessToken, user: result.user };
   }
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile' })
+  async me(@CurrentUser() user: JwtPayload) {
+    return this.authService.getProfile(user.sub);
+  }
+
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
@@ -78,9 +87,9 @@ export class AuthController {
     res.cookie('refreshToken', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/v1/auth',
+      path: '/',
     });
   }
 }

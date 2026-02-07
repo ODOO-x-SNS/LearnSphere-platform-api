@@ -1,5 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, ForbiddenException, Logger } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class ReportsService {
@@ -7,8 +9,21 @@ export class ReportsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Course progress report */
-  async courseProgress(courseId: string, filterStatus?: string, cursor?: string, limit = 50) {
+  /** Course progress report — scoped by role */
+  async courseProgress(
+    courseId: string,
+    user: JwtPayload,
+    filterStatus?: string,
+    cursor?: string,
+    limit = 50,
+  ) {
+    // Instructor can only view reports for their own courses
+    if (user.role !== Role.ADMIN) {
+      const course = await this.prisma.course.findUnique({ where: { id: courseId } });
+      if (!course || course.responsibleId !== user.sub) {
+        throw new ForbiddenException('You can only view reports for your own courses');
+      }
+    }
     const enrollments = await this.prisma.enrollment.findMany({
       where: {
         courseId,
