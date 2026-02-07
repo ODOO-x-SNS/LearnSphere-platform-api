@@ -6,7 +6,6 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
-import { AccessRule, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -34,7 +33,7 @@ export class EnrollmentsService {
 
     // Enforce access rule
     switch (course.accessRule) {
-      case AccessRule.INVITATION: {
+      case 'INVITATION': {
         // Must have accepted invitation
         const invitation = await this.prisma.invitation.findFirst({
           where: { courseId, email: user.email, status: 'ACCEPTED' },
@@ -44,13 +43,13 @@ export class EnrollmentsService {
         }
         break;
       }
-      case AccessRule.PAYMENT: {
+      case 'PAYMENT': {
         // TODO: Integrate Stripe checkout. For now, throw.
         throw new BadRequestException(
           'This course requires payment. Use POST /api/v1/courses/:id/checkout',
         );
       }
-      case AccessRule.OPEN:
+      case 'OPEN':
       default:
         break;
     }
@@ -59,7 +58,7 @@ export class EnrollmentsService {
       data: {
         courseId,
         userId: user.sub,
-        isInvited: course.accessRule === AccessRule.INVITATION,
+        isInvited: course.accessRule === 'INVITATION',
       },
     });
 
@@ -113,9 +112,7 @@ export class EnrollmentsService {
         progress,
         completionPercent,
         status: status as any,
-        ...(status === 'IN_PROGRESS' && !enrollment.startDate
-          ? { startDate: new Date() }
-          : {}),
+        ...(status === 'IN_PROGRESS' && !enrollment.startDate ? { startDate: new Date() } : {}),
         ...(status === 'COMPLETED' ? { completedDate: new Date() } : {}),
       },
     });

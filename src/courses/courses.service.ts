@@ -54,6 +54,14 @@ export class CoursesService {
         description: true,
         tags: true,
         coverImageId: true,
+        coverImage: {
+          select: {
+            id: true,
+            url: true,
+            filename: true,
+            mimeType: true,
+          },
+        },
         totalDurationSec: true,
         lessonsCount: true,
         published: true,
@@ -101,6 +109,14 @@ export class CoursesService {
         description: true,
         tags: true,
         coverImageId: true,
+        coverImage: {
+          select: {
+            id: true,
+            url: true,
+            filename: true,
+            mimeType: true,
+          },
+        },
         totalDurationSec: true,
         lessonsCount: true,
         published: true,
@@ -120,6 +136,14 @@ export class CoursesService {
     const course = await this.prisma.course.findUnique({
       where: { id },
       include: {
+        coverImage: {
+          select: {
+            id: true,
+            url: true,
+            filename: true,
+            mimeType: true,
+          },
+        },
         lessons: {
           where: { deletedAt: null },
           orderBy: { sortOrder: 'asc' },
@@ -136,12 +160,27 @@ export class CoursesService {
   async create(dto: CreateCourseDto, user: JwtPayload) {
     const slug = slugify(dto.title) + '-' + Date.now().toString(36);
 
+    // Verify the cover image exists and belongs to the user
+    const coverImage = await this.prisma.file.findUnique({
+      where: { id: dto.coverImageId },
+      select: { id: true, uploadedById: true },
+    });
+
+    if (!coverImage) {
+      throw new BadRequestException('Cover image not found');
+    }
+
+    if (coverImage.uploadedById !== user.sub) {
+      throw new ForbiddenException('You can only use your own uploaded images as cover');
+    }
+
     const course = await this.prisma.course.create({
       data: {
         title: dto.title,
         slug,
         description: dto.description,
         tags: dto.tags ?? [],
+        coverImageId: dto.coverImageId,
         responsibleId: user.sub,
       },
     });
@@ -167,7 +206,9 @@ export class CoursesService {
     const updated = await this.prisma.course.update({
       where: { id },
       data: {
-        ...(dto.title ? { title: dto.title, slug: slugify(dto.title) + '-' + Date.now().toString(36) } : {}),
+        ...(dto.title
+          ? { title: dto.title, slug: slugify(dto.title) + '-' + Date.now().toString(36) }
+          : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.tags ? { tags: dto.tags } : {}),
         ...(dto.websiteUrl !== undefined ? { websiteUrl: dto.websiteUrl } : {}),
@@ -192,6 +233,9 @@ export class CoursesService {
 
   /* ─── Publish ─── */
   async publish(id: string, user: JwtPayload) {
+    if (user.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only admins can publish courses');
+    }
     const course = await this.prisma.course.findUnique({
       where: { id },
       include: { lessons: { where: { deletedAt: null } } },
@@ -229,6 +273,9 @@ export class CoursesService {
 
   /* ─── Unpublish ─── */
   async unpublish(id: string, user: JwtPayload) {
+    if (user.role !== Role.ADMIN) {
+      throw new ForbiddenException('Only admins can unpublish courses');
+    }
     const course = await this.prisma.course.findUnique({ where: { id } });
     if (!course) throw new NotFoundException('Course not found');
     this.assertCanEdit(user, course);

@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
@@ -40,6 +41,20 @@ export class UsersController {
   @ApiOperation({ summary: 'Change current user password' })
   async changePassword(@CurrentUser() user: JwtPayload, @Body() dto: ChangePasswordDto) {
     return this.usersService.changePassword(user.sub, dto);
+  }
+
+  @Get('instructors')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'List all instructors (admin only)' })
+  async listInstructors(@Query('skip') skip: string = '0', @Query('take') take: string = '20') {
+    return this.usersService.listInstructors(parseInt(skip), parseInt(take));
+  }
+
+  @Get('instructors/:id')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Get instructor details with course info (admin only)' })
+  async getInstructorDetails(@Param('id') id: string) {
+    return this.usersService.getInstructorDetails(id);
   }
 
   @Get(':id')

@@ -33,10 +33,7 @@ export class CoursesController {
   @Roles(Role.ADMIN, Role.INSTRUCTOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List courses for backoffice (admin: all, instructor: own)' })
-  async findAllBackoffice(
-    @Query() query: QueryCoursesDto,
-    @CurrentUser() user: JwtPayload,
-  ) {
+  async findAllBackoffice(@Query() query: QueryCoursesDto, @CurrentUser() user: JwtPayload) {
     return this.coursesService.findAllBackoffice(query, user);
   }
 
@@ -68,7 +65,7 @@ export class CoursesController {
   }
 
   @Post(':id/publish')
-  @Roles(Role.ADMIN, Role.INSTRUCTOR)
+  @Roles(Role.ADMIN)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Publish course (validates prerequisites)' })
@@ -77,7 +74,7 @@ export class CoursesController {
   }
 
   @Post(':id/unpublish')
-  @Roles(Role.ADMIN, Role.INSTRUCTOR)
+  @Roles(Role.ADMIN)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unpublish course' })

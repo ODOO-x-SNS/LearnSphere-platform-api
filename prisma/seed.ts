@@ -49,6 +49,28 @@ async function main() {
   });
   console.log(`  ✓ Learner: ${learner.email}`);
 
+  // ─── Sample Cover Image ───
+  // Create a simple 1px image placeholder (base64 encoded PNG)
+  const imagePlaceholder = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  const coverImage = await prisma.file.upsert({
+    where: { id: 'seed-cover-image' },
+    update: {},
+    create: {
+      id: 'seed-cover-image',
+      filename: 'typescript-course-cover.png',
+      mimeType: 'image/png',
+      size: imagePlaceholder.length,
+      url: '/api/v1/uploads/seed-cover-image',
+      data: imagePlaceholder,
+      uploadedById: instructor.id,
+    },
+  });
+  console.log(`  ✓ Cover Image: ${coverImage.filename}`);
+
   // ─── Sample Course ───
   const course = await prisma.course.upsert({
     where: { slug: 'intro-to-typescript' },
@@ -56,13 +78,15 @@ async function main() {
     create: {
       title: 'Introduction to TypeScript',
       slug: 'intro-to-typescript',
-      description: 'Learn TypeScript from scratch — types, interfaces, generics, and real-world patterns.',
+      description:
+        'Learn TypeScript from scratch — types, interfaces, generics, and real-world patterns.',
       tags: ['typescript', 'javascript', 'programming'],
       published: true,
       websiteUrl: 'https://learnsphere.io/courses/intro-to-typescript',
       visibility: Visibility.EVERYONE,
       accessRule: AccessRule.OPEN,
       responsibleId: instructor.id,
+      coverImageId: coverImage.id,
     },
   });
   console.log(`  ✓ Course: ${course.title}`);

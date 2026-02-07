@@ -94,4 +94,82 @@ export class UsersService {
     });
     return { message: 'Account anonymized' };
   }
+
+  /** Admin: list all instructors with pagination */
+  async listInstructors(skip: number = 0, take: number = 20) {
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { role: 'INSTRUCTOR', deletedAt: null },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          bio: true,
+          totalPoints: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.user.count({
+        where: { role: 'INSTRUCTOR', deletedAt: null },
+      }),
+    ]);
+
+    return {
+      data,
+      paging: {
+        total,
+        skip,
+        take,
+        hasMore: skip + take < total,
+      },
+    };
+  }
+
+  /** Admin: get instructor details with course info */
+  async getInstructorDetails(instructorId: string) {
+    const instructor = await this.prisma.user.findUnique({
+      where: { id: instructorId, role: 'INSTRUCTOR' },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        avatarUrl: true,
+        bio: true,
+        totalPoints: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!instructor) throw new NotFoundException('Instructor not found');
+
+    // Get courses authored by this instructor
+    const courses = await this.prisma.course.findMany({
+      where: { responsibleId: instructorId },
+      select: {
+        id: true,
+        title: true,
+        published: true,
+        createdAt: true,
+      },
+    });
+
+    // Get student count from enrollments in instructor's courses
+    const enrollments = await this.prisma.enrollment.count({
+      where: {
+        course: { responsibleId: instructorId },
+      },
+    });
+
+    return {
+      ...instructor,
+      coursesCount: courses.length,
+      studentCount: enrollments,
+      courses,
+    };
+  }
 }
