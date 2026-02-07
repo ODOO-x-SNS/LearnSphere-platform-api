@@ -1,0 +1,350 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+///////////////////////////
+// ENUMS
+///////////////////////////
+
+enum Role {
+  ADMIN
+  INSTRUCTOR
+  LEARNER
+}
+
+enum LessonType {
+  VIDEO
+  DOCUMENT
+  IMAGE
+  QUIZ
+}
+
+enum Visibility {
+  EVERYONE
+  SIGNED_IN
+}
+
+enum AccessRule {
+  OPEN
+  INVITATION
+  PAYMENT
+}
+
+enum EnrollmentStatus {
+  YET_TO_START
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum PointsSource {
+  QUIZ
+  COURSE_COMPLETION
+  MANUAL
+  OTHER
+}
+
+///////////////////////////
+// MODELS
+///////////////////////////
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  name          String?
+  avatarUrl     String?
+  role          Role           @default(LEARNER)
+  bio           String?
+  totalPoints   Int            @default(0)
+  failedLoginAttempts Int      @default(0)
+  lockedUntil   DateTime?
+  refreshTokenHash String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  // Relations
+  coursesOwned  Course[]       @relation("CourseResponsible")
+  enrollments   Enrollment[]
+  quizAttempts  QuizAttempt[]
+  reviews       Review[]
+  uploads       File[]         @relation("UploadedBy")
+  invitations   Invitation[]   @relation("InvitedBy")
+  badges        UserBadge[]
+  points        PointsTransaction[]
+  auditLogs     AuditLog[]     @relation("ActorLogs")
+
+  @@index([role])
+}
+
+model Course {
+  id               String       @id @default(uuid())
+  title            String
+  slug             String       @unique
+  description      String?
+  tags             String[]
+  coverImageId     String?
+  coverImage       File?        @relation(fields: [coverImageId], references: [id])
+  totalDurationSec Int          @default(0)
+  lessonsCount     Int          @default(0)
+  published        Boolean      @default(false)
+  websiteUrl       String?
+  visibility       Visibility   @default(EVERYONE)
+  accessRule       AccessRule   @default(OPEN)
+  price            Decimal?     @db.Decimal(10,2)
+  responsibleId    String?
+  responsible      User?        @relation("CourseResponsible", fields: [responsibleId], references: [id])
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relations
+  lessons          Lesson[]
+  quizzes          Quiz[]
+  enrollments      Enrollment[]
+  reviews          Review[]
+  invitations      Invitation[]
+  auditLogs        AuditLog[]   @relation("CourseLogs")
+
+  @@index([published])
+  @@index([visibility])
+  @@index([accessRule])
+  @@index([responsibleId])
+}
+
+model Lesson {
+  id            String      @id @default(uuid())
+  courseId       String
+  course        Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title         String
+  type          LessonType
+  mediaFileId   String?     @unique
+  mediaFile     File?       @relation("LessonMedia", fields: [mediaFileId], references: [id])
+  externalUrl   String?
+  durationSec   Int?
+  allowDownload Boolean     @default(false)
+  description   String?
+  sortOrder     Int         @default(0)
+  deletedAt     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  attachments   Attachment[]
+  quiz          Quiz?
+  auditLogs     AuditLog[]  @relation("LessonLogs")
+
+  @@index([courseId, sortOrder])
+  @@unique([courseId, sortOrder], name: "unique_lesson_order_per_course")
+}
+
+model Attachment {
+  id          String   @id @default(uuid())
+  lessonId    String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  fileId      String?
+  file        File?    @relation(fields: [fileId], references: [id])
+  externalUrl String?
+  name        String?
+  allowDownload Boolean @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model File {
+  id          String    @id @default(uuid())
+  url         String
+  filename    String
+  mimeType    String?
+  size        Int?
+  external    Boolean   @default(false)
+  allowDownload Boolean  @default(false)
+  uploaded    Boolean   @default(false)
+  uploadedById String?
+  uploadedBy  User?     @relation("UploadedBy", fields: [uploadedById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  // reverse relations
+  coverForCourses Course[]
+  lessonMedia     Lesson?  @relation("LessonMedia")
+  attachments     Attachment[]
+}
+
+model Quiz {
+  id            String      @id @default(uuid())
+  courseId      String
+  course        Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  lessonId      String?     @unique
+  lesson        Lesson?     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  pointsFirstTry     Int    @default(0)
+  pointsSecondTry    Int    @default(0)
+  pointsThirdTry     Int    @default(0)
+  pointsFourthPlus   Int    @default(0)
+  allowMultipleAttempts Boolean @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  questions     Question[]
+  attempts      QuizAttempt[]
+
+  @@index([courseId])
+}
+
+model Question {
+  id          String    @id @default(uuid())
+  quizId      String
+  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  text        String
+  multipleSelection Boolean @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  options     Option[]
+}
+
+model Option {
+  id          String    @id @default(uuid())
+  questionId  String
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text        String
+  isCorrect   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
+
+model QuizAttempt {
+  id             String   @id @default(uuid())
+  quizId         String
+  quiz           Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attemptNumber  Int
+  answers        Json
+  score          Int      @default(0)
+  maxScore       Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@unique([quizId, userId, attemptNumber], name: "unique_user_attempt_per_quiz_attemptnum")
+  @@index([quizId])
+  @@index([userId])
+}
+
+model Enrollment {
+  id               String           @id @default(uuid())
+  courseId         String
+  course           Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrolledAt       DateTime         @default(now())
+  startDate        DateTime?
+  completedDate    DateTime?
+  timeSpentSec     Int              @default(0)
+  completionPercent Float           @default(0.0)
+  status           EnrollmentStatus @default(YET_TO_START)
+  progress         Json?
+  isInvited        Boolean          @default(false)
+
+  @@unique([courseId, userId], name: "unique_enrollment_per_user_course")
+  @@index([userId])
+  @@index([courseId])
+}
+
+model Invitation {
+  id           String           @id @default(uuid())
+  courseId     String
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  email        String
+  invitedById  String?
+  invitedBy    User?            @relation("InvitedBy", fields: [invitedById], references: [id])
+  token        String           @unique
+  status       InvitationStatus @default(PENDING)
+  expiresAt    DateTime?
+  acceptedAt   DateTime?
+  createdAt    DateTime         @default(now())
+
+  @@index([courseId])
+  @@index([email])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  text      String?
+  createdAt DateTime @default(now())
+
+  @@unique([courseId, userId], name: "one_review_per_user_per_course")
+  @@index([courseId])
+  @@index([userId])
+}
+
+model Badge {
+  id             String     @id @default(uuid())
+  name           String
+  description    String?
+  requiredPoints Int
+  iconUrl        String?
+  createdAt      DateTime   @default(now())
+
+  users          UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId   String
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  earnedAt  DateTime @default(now())
+
+  @@unique([userId, badgeId], name: "unique_user_badge")
+  @@index([userId])
+  @@index([badgeId])
+}
+
+model PointsTransaction {
+  id         String       @id @default(uuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source     PointsSource
+  points     Int
+  metadata   Json?
+  createdAt  DateTime     @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  actorId       String?
+  actor         User?    @relation("ActorLogs", fields: [actorId], references: [id])
+  action        String
+  resourceType  String?
+  resourceId    String?
+  courseId      String?
+  course        Course?  @relation("CourseLogs", fields: [courseId], references: [id])
+  lessonId      String?
+  lesson        Lesson?  @relation("LessonLogs", fields: [lessonId], references: [id])
+  data          Json?
+  createdAt     DateTime @default(now())
+
+  @@index([actorId])
+  @@index([resourceType, resourceId])
+}
