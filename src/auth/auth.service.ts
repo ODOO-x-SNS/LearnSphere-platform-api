@@ -12,7 +12,7 @@ import * as argon2 from 'argon2';
 import { randomBytes, createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
-import { LoginDto, RegisterDto } from './dto';
+import { LoginDto, RegisterDto, RegisterInstructorDto } from './dto';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
@@ -42,6 +42,25 @@ export class AuthService {
     });
 
     return this.generateTokens(user.id, user.email, user.role);
+  }
+
+  /* ─── Register Instructor (pending approval) ─── */
+  async registerInstructor(dto: RegisterInstructorDto) {
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new ConflictException('Email already in use');
+
+    const passwordHash = await argon2.hash(dto.password);
+    await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        passwordHash,
+        name: dto.name,
+        role: 'INSTRUCTOR',
+        status: 'PENDING',
+      },
+    });
+
+    return { message: 'Your request is pending admin approval.' };
   }
 
   /* ─── Login ─── */
@@ -77,6 +96,14 @@ export class AuthService {
         where: { id: user.id },
         data: { failedLoginAttempts: 0, lockedUntil: null },
       });
+    }
+
+    // Block pending / rejected instructors
+    if (user.status === 'PENDING') {
+      throw new ForbiddenException('Your account is pending admin approval.');
+    }
+    if (user.status === 'REJECTED') {
+      throw new ForbiddenException('Your instructor application has been rejected.');
     }
 
     return this.generateTokens(user.id, user.email, user.role);

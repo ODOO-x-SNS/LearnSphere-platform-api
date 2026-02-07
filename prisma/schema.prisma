@@ -63,6 +63,12 @@ enum CourseRequestStatus {
   REJECTED
 }
 
+enum UserStatus {
+  ACTIVE
+  PENDING
+  REJECTED
+}
+
 ///////////////////////////
 // MODELS
 ///////////////////////////
@@ -74,6 +80,7 @@ model User {
   name          String?
   avatarUrl     String?
   role          Role           @default(LEARNER)
+  status        UserStatus     @default(ACTIVE)
   bio           String?
   totalPoints   Int            @default(0)
   failedLoginAttempts Int      @default(0)

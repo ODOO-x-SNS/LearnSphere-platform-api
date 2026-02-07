@@ -5,7 +5,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { Role, Prisma } from '@prisma/client';
+import { Role, Prisma, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { CreateCourseDto, UpdateCourseDto, QueryCoursesDto } from './dto';
@@ -158,6 +158,17 @@ export class CoursesService {
 
   /* ─── Create ─── */
   async create(dto: CreateCourseDto, user: JwtPayload) {
+    // Only ACTIVE instructors (or admins) can create courses
+    if (user.role === Role.INSTRUCTOR) {
+      const dbUser = await this.prisma.user.findUnique({
+        where: { id: user.sub },
+        select: { status: true },
+      });
+      if (dbUser?.status !== UserStatus.ACTIVE) {
+        throw new ForbiddenException('Your account is not yet approved. Only active instructors can create courses.');
+      }
+    }
+
     const slug = slugify(dto.title) + '-' + Date.now().toString(36);
 
     // Verify the cover image exists and belongs to the user

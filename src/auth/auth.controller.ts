@@ -12,7 +12,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto } from './dto';
+import { LoginDto, RegisterDto, RegisterInstructorDto } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public, CurrentUser } from '../common/decorators';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
@@ -32,6 +32,13 @@ export class AuthController {
     const result = await this.authService.register(dto);
     this.setRefreshCookie(res, result.refreshToken);
     return { accessToken: result.accessToken, user: result.user };
+  }
+
+  @Public()
+  @Post('register-instructor')
+  @ApiOperation({ summary: 'Register as instructor (pending approval)' })
+  async registerInstructor(@Body() dto: RegisterInstructorDto) {
+    return this.authService.registerInstructor(dto);
   }
 
   @Public()
