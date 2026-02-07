@@ -28,6 +28,7 @@ export class CreateLessonDto {
 
 export class UpdateLessonDto {
   @ApiPropertyOptional() @IsOptional() @IsString() title?: string;
+  @ApiPropertyOptional({ enum: LessonType }) @IsOptional() @IsEnum(LessonType) type?: LessonType;
   @ApiPropertyOptional() @IsOptional() @IsString() externalUrl?: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) durationSec?: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() allowDownload?: boolean;

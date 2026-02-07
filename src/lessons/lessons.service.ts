@@ -24,10 +24,13 @@ export class LessonsService {
     if (!course) throw new NotFoundException('Course not found');
     this.assertCanEdit(user, course);
 
-    // Auto-assign sortOrder if not provided
-    const sortOrder =
-      dto.sortOrder ??
-      (await this.prisma.lesson.count({ where: { courseId } }));
+    // Always compute a safe sortOrder as MAX(sortOrder)+1 to avoid
+    // unique-constraint collisions with soft-deleted lessons.
+    const maxResult = await this.prisma.lesson.aggregate({
+      where: { courseId },
+      _max: { sortOrder: true },
+    });
+    const sortOrder = (maxResult._max.sortOrder ?? -1) + 1;
 
     const lesson = await this.prisma.$transaction(async (tx) => {
       const l = await tx.lesson.create({

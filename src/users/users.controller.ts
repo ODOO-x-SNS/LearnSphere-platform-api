@@ -6,11 +6,14 @@ import {
   Param,
   Body,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { CurrentUser, Roles } from '../common/decorators';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
@@ -30,6 +33,13 @@ export class UsersController {
   @ApiOperation({ summary: 'Update current user profile' })
   async updateProfile(@CurrentUser() user: JwtPayload, @Body() dto: UpdateUserDto) {
     return this.usersService.update(user.sub, dto);
+  }
+
+  @Patch('me/password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change current user password' })
+  async changePassword(@CurrentUser() user: JwtPayload, @Body() dto: ChangePasswordDto) {
+    return this.usersService.changePassword(user.sub, dto);
   }
 
   @Get(':id')

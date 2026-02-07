@@ -25,9 +25,9 @@ export class ReportsController {
   }
 
   @Get('dashboard')
-  @Roles(Role.ADMIN)
-  @ApiOperation({ summary: 'Dashboard stats (admin)' })
-  async dashboard() {
-    return this.reportsService.dashboardStats();
+  @Roles(Role.ADMIN, Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'Dashboard stats (scoped by role)' })
+  async dashboard(@CurrentUser() user: JwtPayload) {
+    return this.reportsService.dashboardStats(user);
   }
 }

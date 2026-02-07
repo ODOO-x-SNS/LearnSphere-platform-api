@@ -62,16 +62,30 @@ export class ReportsService {
     };
   }
 
-  /** Dashboard stats for admin */
-  async dashboardStats() {
-    const [totalUsers, totalCourses, totalEnrollments, totalQuizAttempts] =
-      await Promise.all([
-        this.prisma.user.count(),
-        this.prisma.course.count({ where: { published: true } }),
-        this.prisma.enrollment.count(),
-        this.prisma.quizAttempt.count(),
-      ]);
+  /** Dashboard stats — scoped by role */
+  async dashboardStats(user: JwtPayload) {
+    const isAdmin = user.role === Role.ADMIN;
+    const courseWhere = isAdmin ? {} : { responsibleId: user.sub };
+    const enrollmentWhere = isAdmin ? {} : { course: { responsibleId: user.sub } };
 
-    return { totalUsers, totalCourses, totalEnrollments, totalQuizAttempts };
+    const [totalCourses, totalEnrolled, completedEnrollments] = await Promise.all([
+      this.prisma.course.count({ where: courseWhere }),
+      this.prisma.enrollment.count({ where: enrollmentWhere }),
+      this.prisma.enrollment.count({ where: { ...enrollmentWhere, status: 'COMPLETED' } }),
+    ]);
+
+    const quizAgg = await this.prisma.quizAttempt.aggregate({
+      _avg: { score: true },
+      where: isAdmin ? {} : { quiz: { course: { responsibleId: user.sub } } },
+    });
+
+    const completionRate = totalEnrolled > 0 ? (completedEnrollments / totalEnrolled) * 100 : 0;
+
+    return {
+      totalCourses,
+      totalEnrolled,
+      completionRate,
+      avgQuizScore: quizAgg._avg.score ?? 0,
+    };
   }
 }
