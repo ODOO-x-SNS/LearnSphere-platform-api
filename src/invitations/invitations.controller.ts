@@ -1,20 +1,20 @@
-import { Controller, Post, Param, Body, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, Query, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { InvitationsService } from './invitations.service';
 import { InviteDto } from './dto';
-import { CurrentUser, Roles } from '../common/decorators';
+import { CurrentUser, Roles, Public } from '../common/decorators';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @ApiTags('Invitations')
-@ApiBearerAuth()
 @Controller()
 export class InvitationsController {
   constructor(private readonly invitationsService: InvitationsService) {}
 
   @Post('courses/:courseId/invite')
   @Roles(Role.ADMIN, Role.INSTRUCTOR)
-  @ApiOperation({ summary: 'Send invitations for a course' })
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Send invitation for a course' })
   async invite(
     @Param('courseId') courseId: string,
     @Body() dto: InviteDto,
@@ -23,9 +23,17 @@ export class InvitationsController {
     return this.invitationsService.invite(courseId, dto.emails, user);
   }
 
+  @Public()
+  @Get('invitations/validate')
+  @ApiOperation({ summary: 'Validate an invite token (public)' })
+  async validate(@Query('token') token: string) {
+    return this.invitationsService.validateToken(token);
+  }
+
   @Post('invitations/accept')
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Accept an invitation via token' })
+  @ApiOperation({ summary: 'Accept an invitation via token (auto-enrolls)' })
   async accept(
     @Query('token') token: string,
     @CurrentUser() user: JwtPayload,

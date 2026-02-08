@@ -8,6 +8,7 @@ import {
 import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { BadgesService } from '../badges/badges.service';
 import { CreateQuizDto, SubmitAttemptDto } from './dto';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
@@ -18,6 +19,7 @@ export class QuizzesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLog: AuditLogService,
+    private readonly badges: BadgesService,
   ) {}
 
   /* ─── Create Quiz ─── */
@@ -105,7 +107,7 @@ export class QuizzesService {
 
   /* ─── Submit Attempt (Critical flow) ─── */
   async submitAttempt(quizId: string, dto: SubmitAttemptDto, user: JwtPayload) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const quiz = await tx.quiz.findUnique({
         where: { id: quizId },
         include: {
@@ -113,6 +115,21 @@ export class QuizzesService {
         },
       });
       if (!quiz) throw new NotFoundException('Quiz not found');
+
+      // Enrollment check — learner must be enrolled
+      if (user.role === Role.LEARNER) {
+        const enrollment = await tx.enrollment.findUnique({
+          where: {
+            unique_enrollment_per_user_course: {
+              courseId: quiz.courseId,
+              userId: user.sub,
+            },
+          },
+        });
+        if (!enrollment) {
+          throw new ForbiddenException('You must be enrolled in this course to attempt the quiz');
+        }
+      }
 
       // Count previous attempts
       const prevCount = await tx.quizAttempt.count({
@@ -210,6 +227,41 @@ export class QuizzesService {
         awardedPoints,
       };
     });
+
+    // Check & award badges after transaction (non-blocking)
+    try {
+      const badgeResult = await this.badges.checkAndAwardBadges(user.sub);
+      if (badgeResult && !Array.isArray(badgeResult) && badgeResult.badges.length > 0) {
+        return { ...result, newBadges: badgeResult.badges };
+      }
+    } catch (err) {
+      this.logger.warn(`Badge check failed for user ${user.sub}: ${err}`);
+    }
+
+    return { ...result, newBadges: [] as string[] };
+  }
+
+  /* ─── Get User Attempts for a Quiz ─── */
+  async getAttempts(quizId: string, user: JwtPayload) {
+    const quiz = await this.prisma.quiz.findUnique({ where: { id: quizId } });
+    if (!quiz) throw new NotFoundException('Quiz not found');
+
+    const attempts = await this.prisma.quizAttempt.findMany({
+      where: { quizId, userId: user.sub },
+      orderBy: { attemptNumber: 'asc' },
+    });
+
+    return {
+      quizId,
+      totalAttempts: attempts.length,
+      attempts: attempts.map((a) => ({
+        id: a.id,
+        attemptNumber: a.attemptNumber,
+        score: a.score,
+        maxScore: a.maxScore,
+        createdAt: a.createdAt,
+      })),
+    };
   }
 
   /* ─── Update Quiz ─── */

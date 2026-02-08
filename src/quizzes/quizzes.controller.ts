@@ -65,12 +65,21 @@ export class QuizzesController {
 
   @Post('quizzes/:id/attempts')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Submit a quiz attempt (scores server-side, awards points)' })
+  @ApiOperation({ summary: 'Submit a quiz attempt (scores server-side, awards points & badges)' })
   async submitAttempt(
     @Param('id') id: string,
     @Body() dto: SubmitAttemptDto,
     @CurrentUser() user: JwtPayload,
   ) {
     return this.quizzesService.submitAttempt(id, dto, user);
+  }
+
+  @Get('quizzes/:id/attempts')
+  @ApiOperation({ summary: 'Get my attempts for a quiz' })
+  async getAttempts(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.quizzesService.getAttempts(id, user);
   }
 }

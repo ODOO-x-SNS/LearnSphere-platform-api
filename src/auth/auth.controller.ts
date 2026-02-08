@@ -12,7 +12,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, RegisterInstructorDto } from './dto';
+import { LoginDto, RegisterDto, RegisterInstructorDto, ForgotPasswordDto, ResetPasswordDto } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public, CurrentUser } from '../common/decorators';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
@@ -39,6 +39,22 @@ export class AuthController {
   @ApiOperation({ summary: 'Register as instructor (pending approval)' })
   async registerInstructor(@Body() dto: RegisterInstructorDto) {
     return this.authService.registerInstructor(dto);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request a password reset link via email' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto, dto.appType || 'learner');
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using a one-time token' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @Public()

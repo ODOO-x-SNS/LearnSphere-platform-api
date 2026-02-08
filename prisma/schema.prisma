@@ -102,6 +102,8 @@ model User {
   auditLogs     AuditLog[]     @relation("ActorLogs")
   courseRequests CourseRequest[] @relation("CourseRequests")
   reviewedRequests CourseRequest[] @relation("ReviewedRequests")
+  lessonProgress LessonProgress[]
+  passwordResets PasswordResetToken[] @relation("PasswordResets")
 
   @@index([role])
 }
@@ -121,6 +123,7 @@ model Course {
   visibility       Visibility   @default(EVERYONE)
   accessRule       AccessRule   @default(OPEN)
   price            Decimal?     @db.Decimal(10,2)
+  sequentialProgress Boolean    @default(false)
   responsibleId    String?
   responsible      User?        @relation("CourseResponsible", fields: [responsibleId], references: [id])
   createdAt        DateTime     @default(now())
@@ -129,6 +132,7 @@ model Course {
   // Relations
   lessons          Lesson[]
   quizzes          Quiz[]
+  lessonProgress   LessonProgress[]
   enrollments      Enrollment[]
   reviews          Review[]
   invitations      Invitation[]
@@ -175,6 +179,8 @@ model Lesson {
   allowDownload Boolean     @default(false)
   description   String?
   sortOrder     Int         @default(0)
+  quizId        String?     @unique
+  linkedQuiz    Quiz?       @relation("LessonLinkedQuiz", fields: [quizId], references: [id])
   deletedAt     DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -183,6 +189,7 @@ model Lesson {
   attachments   Attachment[]
   quiz          Quiz?
   auditLogs     AuditLog[]  @relation("LessonLogs")
+  lessonProgress LessonProgress[]
 
   @@index([courseId, sortOrder])
   @@unique([courseId, sortOrder], name: "unique_lesson_order_per_course")
@@ -238,6 +245,7 @@ model Quiz {
 
   questions     Question[]
   attempts      QuizAttempt[]
+  linkedLesson  Lesson?     @relation("LessonLinkedQuiz")
 
   @@index([courseId])
 }
@@ -295,9 +303,28 @@ model Enrollment {
   progress         Json?
   isInvited        Boolean          @default(false)
 
+  lessonProgress LessonProgress[]
+
   @@unique([courseId, userId], name: "unique_enrollment_per_user_course")
   @@index([userId])
   @@index([courseId])
+}
+
+model LessonProgress {
+  id            String     @id @default(uuid())
+  enrollmentId  String
+  enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lessonId      String
+  lesson        Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  courseId      String
+  course        Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completedAt   DateTime   @default(now())
+
+  @@unique([enrollmentId, lessonId], name: "unique_lesson_progress_per_enrollment")
+  @@index([userId, courseId])
+  @@index([enrollmentId])
 }
 
 model Invitation {
@@ -367,6 +394,19 @@ model PointsTransaction {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation("PasswordResets", fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
 }
 
 model AuditLog {

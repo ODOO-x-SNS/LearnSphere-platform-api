@@ -165,7 +165,9 @@ export class CoursesService {
         select: { status: true },
       });
       if (dbUser?.status !== UserStatus.ACTIVE) {
-        throw new ForbiddenException('Your account is not yet approved. Only active instructors can create courses.');
+        throw new ForbiddenException(
+          'Your account is not yet approved. Only active instructors can create courses.',
+        );
       }
     }
 
@@ -227,6 +229,9 @@ export class CoursesService {
         ...(dto.visibility ? { visibility: dto.visibility } : {}),
         ...(dto.accessRule ? { accessRule: dto.accessRule } : {}),
         ...(dto.price !== undefined ? { price: dto.price } : {}),
+        ...(dto.sequentialProgress !== undefined
+          ? { sequentialProgress: dto.sequentialProgress }
+          : {}),
       },
     });
 

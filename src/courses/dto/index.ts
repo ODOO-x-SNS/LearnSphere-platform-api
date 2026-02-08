@@ -42,6 +42,10 @@ export class UpdateCourseDto {
   @IsEnum(AccessRule)
   accessRule?: AccessRule;
   @ApiPropertyOptional() @IsOptional() @IsNumber() price?: number;
+  @ApiPropertyOptional({ description: 'Enable sequential lesson unlocking' })
+  @IsOptional()
+  @IsBoolean()
+  sequentialProgress?: boolean;
 }
 
 export class QueryCoursesDto {
