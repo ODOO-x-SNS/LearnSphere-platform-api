@@ -259,11 +259,6 @@ export class CoursesService {
     if (!course) throw new NotFoundException('Course not found');
     this.assertCanEdit(user, course);
 
-    // Validation: websiteUrl required for publish
-    if (!course.websiteUrl) {
-      throw new BadRequestException('Course websiteUrl is required before publishing');
-    }
-
     const updated = await this.prisma.$transaction(async (tx) => {
       const result = await tx.course.update({
         where: { id },

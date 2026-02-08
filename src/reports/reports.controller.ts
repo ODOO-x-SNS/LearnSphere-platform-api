@@ -13,15 +13,31 @@ export class ReportsController {
 
   @Get('course-progress')
   @Roles(Role.ADMIN, Role.INSTRUCTOR)
-  @ApiOperation({ summary: 'Course progress report (scoped to own courses for instructors)' })
+  @ApiOperation({ summary: 'Course progress report — works with or without courseId' })
   async courseProgress(
     @CurrentUser() user: JwtPayload,
-    @Query('courseId') courseId: string,
-    @Query('filterStatus') filterStatus?: string,
-    @Query('cursor') cursor?: string,
-    @Query('limit') limit?: number,
+    @Query('courseId') courseId?: string,
+    @Query('status') filterStatus?: string,
+    @Query('search') search?: string,
   ) {
-    return this.reportsService.courseProgress(courseId, user, filterStatus, cursor, limit);
+    return this.reportsService.courseProgress(user, courseId || undefined, filterStatus, search);
+  }
+
+  @Get('learners')
+  @Roles(Role.ADMIN, Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'All learners with full details' })
+  async allLearners(
+    @CurrentUser() user: JwtPayload,
+    @Query('search') search?: string,
+  ) {
+    return this.reportsService.allLearners(user, search);
+  }
+
+  @Get('reviews')
+  @Roles(Role.ADMIN, Role.INSTRUCTOR)
+  @ApiOperation({ summary: 'All reviews across courses' })
+  async allReviews(@CurrentUser() user: JwtPayload) {
+    return this.reportsService.allReviews(user);
   }
 
   @Get('dashboard')

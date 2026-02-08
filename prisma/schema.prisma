@@ -240,6 +240,7 @@ model Quiz {
   pointsThirdTry     Int    @default(0)
   pointsFourthPlus   Int    @default(0)
   allowMultipleAttempts Boolean @default(true)
+  timeLimitSec  Int?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 

@@ -181,11 +181,12 @@ async function main() {
 
   // ─── Badges ───
   const badges = [
-    { name: 'Newcomer', description: 'Earned first 10 points', requiredPoints: 10 },
-    { name: 'Quick Learner', description: 'Earned 100 points', requiredPoints: 100 },
-    { name: 'Scholar', description: 'Earned 500 points', requiredPoints: 500 },
-    { name: 'Expert', description: 'Earned 1000 points', requiredPoints: 1000 },
-    { name: 'Master', description: 'Earned 5000 points', requiredPoints: 5000 },
+    { name: 'Newbie', description: 'Earned 20 points', requiredPoints: 20, iconUrl: '🌱' },
+    { name: 'Explorer', description: 'Earned 40 points', requiredPoints: 40, iconUrl: '🧭' },
+    { name: 'Achiever', description: 'Earned 60 points', requiredPoints: 60, iconUrl: '⭐' },
+    { name: 'Specialist', description: 'Earned 80 points', requiredPoints: 80, iconUrl: '🔬' },
+    { name: 'Expert', description: 'Earned 100 points', requiredPoints: 100, iconUrl: '🏅' },
+    { name: 'Master', description: 'Earned 120 points', requiredPoints: 120, iconUrl: '👑' },
   ];
 
   for (const b of badges) {

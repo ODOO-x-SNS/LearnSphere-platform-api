@@ -36,6 +36,7 @@ export class CreateQuizDto {
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) pointsThirdTry?: number;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) pointsFourthPlus?: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() allowMultipleAttempts?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) timeLimitSec?: number;
 
   @ApiProperty({ type: [CreateQuestionDto] })
   @IsArray()

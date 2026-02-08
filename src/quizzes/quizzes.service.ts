@@ -41,6 +41,7 @@ export class QuizzesService {
         pointsThirdTry: dto.pointsThirdTry ?? 0,
         pointsFourthPlus: dto.pointsFourthPlus ?? 0,
         allowMultipleAttempts: dto.allowMultipleAttempts ?? true,
+        timeLimitSec: dto.timeLimitSec ?? null,
         questions: {
           create: dto.questions.map((q) => ({
             text: q.text,
@@ -288,6 +289,7 @@ export class QuizzesService {
         pointsThirdTry: dto.pointsThirdTry ?? quiz.pointsThirdTry,
         pointsFourthPlus: dto.pointsFourthPlus ?? quiz.pointsFourthPlus,
         allowMultipleAttempts: dto.allowMultipleAttempts ?? quiz.allowMultipleAttempts,
+        timeLimitSec: dto.timeLimitSec !== undefined ? dto.timeLimitSec || null : quiz.timeLimitSec,
         questions: {
           create: dto.questions.map((q) => ({
             text: q.text,
@@ -327,7 +329,31 @@ export class QuizzesService {
       throw new ForbiddenException('Not allowed');
     }
 
-    await this.prisma.quiz.delete({ where: { id } });
+    // Soft-delete any lessons linked to this quiz and update course counts
+    const linkedLessons = await this.prisma.lesson.findMany({
+      where: { quizId: id, deletedAt: null },
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      // Soft-delete linked lessons
+      if (linkedLessons.length > 0) {
+        await tx.lesson.updateMany({
+          where: { quizId: id },
+          data: { quizId: null, deletedAt: new Date() },
+        });
+
+        const totalDuration = linkedLessons.reduce((sum, l) => sum + (l.durationSec ?? 0), 0);
+        await tx.course.update({
+          where: { id: quiz.courseId },
+          data: {
+            lessonsCount: { decrement: linkedLessons.length },
+            ...(totalDuration > 0 ? { totalDurationSec: { decrement: totalDuration } } : {}),
+          },
+        });
+      }
+
+      await tx.quiz.delete({ where: { id } });
+    });
 
     await this.auditLog.create({
       actorId: user.sub,

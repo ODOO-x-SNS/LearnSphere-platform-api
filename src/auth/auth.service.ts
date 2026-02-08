@@ -13,7 +13,13 @@ import * as argon2 from 'argon2';
 import { randomBytes, createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
-import { LoginDto, RegisterDto, RegisterInstructorDto, ForgotPasswordDto, ResetPasswordDto } from './dto';
+import {
+  LoginDto,
+  RegisterDto,
+  RegisterInstructorDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './dto';
 import { MailService } from './mail.service';
 
 const MAX_FAILED_ATTEMPTS = 5;
@@ -197,9 +203,10 @@ export class AuthService {
     });
 
     // Build reset URL based on app type
-    const frontendUrl = appType === 'admin'
-      ? this.config.get('ADMIN_FRONTEND_URL', 'http://localhost:5173')
-      : this.config.get('LEARNER_FRONTEND_URL', 'http://localhost:5174');
+    const frontendUrl =
+      appType === 'admin'
+        ? this.config.get('ADMIN_FRONTEND_URL', 'http://localhost:5173')
+        : this.config.get('LEARNER_FRONTEND_URL', 'http://localhost:5174');
     const resetUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
 
     try {
